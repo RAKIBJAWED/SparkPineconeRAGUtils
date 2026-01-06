@@ -1,0 +1,453 @@
+id,rule_name,source_spark_version,target_spark_version,migration_type,severity,category,spark_rule,error_with_before_script,spark_doc_link,tags,created_at,before_script_length,after_script_length,relevance_score,before_script,after_script
+format_string_migration_001,Format String Argument Index Migration,3.2,3.3,sql_function_change,high,string_formatting,"Since Spark 3.3, the strfmt in format_string(strfmt, obj, ...) and printf(strfmt, obj, ...) will no longer support to use 0$ to specify the first argument, the first argument should always reference by 1$ when use argument index to indicating the position of the argument in the argument list.","[INVALID_PARAMETER_VALUE.ZERO_INDEX] The value of parameter(s) `strfmt` in `format_string` is invalid: expects %1$, %2$ and so on, but got %0$.; line 1 pos 0",https://spark.apache.org/docs/latest/sql-migration-guide.html#upgrading-from-spark-sql-33-to-34,"format_string, printf, argument_indexing, sql_functions",2026-01-06T18:30:00Z,3220,3856,0.0,"#!/usr/bin/env python3
+""""""
+Format String Migration - BEFORE Script (Spark 3.2 and earlier)
+This script demonstrates the deprecated 0$ indexing in format_string and printf functions.
+
+Usage:
+    python before_script.py
+
+This script can be run independently to test the deprecated behavior.
+""""""
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import expr
+
+def main():
+    # Create SparkSession
+    spark = SparkSession.builder \
+        .appName('FormatStringBefore') \
+        .master('local[*]') \
+        .getOrCreate()
+    
+    print(""=== Format String Migration - BEFORE (Deprecated 0$ indexing) ==="")
+    
+    try:
+        # Create sample DataFrame
+        data = [
+            ('John', 5, 'Premium'),
+            ('Alice', 100, 'Gold'),
+            ('Bob', 25, 'Silver'),
+            ('Carol', 75, 'Premium')
+        ]
+        df = spark.createDataFrame(data, ['name', 'message_count', 'tier'])
+        
+        print(""\nOriginal DataFrame:"")
+        df.show()
+        
+        # Using format_string with 0$ indexing (deprecated in Spark 3.3+)
+        print(""\n1. Using format_string with 0$ indexing:"")
+        result1 = df.select(
+            'name',
+            'message_count',
+            expr(""format_string('Hello %0$s, you have %0$d messages', name, message_count)"").alias('greeting')
+        )
+        result1.show(truncate=False)
+        
+        # Using printf with 0$ indexing (deprecated in Spark 3.3+)
+        print(""\n2. Using printf with 0$ indexing:"")
+        result2 = df.select(
+            'name',
+            'tier',
+            expr(""printf('User %0$s has %0$s tier status', name, tier)"").alias('user_info')
+        )
+        result2.show(truncate=False)
+        
+        # Complex format string with multiple 0$ references
+        print(""\n3. Complex format string with multiple 0$ references:"")
+        result3 = df.select(
+            'name',
+            'message_count',
+            'tier',
+            expr(""format_string('Welcome %0$s! You are a %0$s member with %0$d unread messages', name, tier, message_count)"").alias('welcome_msg')
+        )
+        result3.show(truncate=False)
+        
+        # Nested format string operations
+        print(""\n4. Nested format string operations with 0$ indexing:"")
+        result4 = df.select(
+            'name',
+            'message_count',
+            expr(""format_string('Status: %0$s', format_string('User %0$s has %0$d items', name, message_count))"").alias('nested_format')
+        )
+        result4.show(truncate=False)
+        
+        print(""\n⚠️  WARNING: This code uses deprecated 0$ indexing which is not supported in Spark 3.3+"")
+        print(""   It may cause parsing errors or unexpected behavior in newer versions."")
+        print(""   Expected errors: ArgumentIndexOutOfBoundsException or similar parsing errors"")
+        
+    except Exception as e:
+        print(f""❌ Error executing format string operations: {e}"")
+        print(""   This error is expected in Spark 3.3+ due to deprecated 0$ indexing"")
+        print(""   The error demonstrates why migration to 1$-based indexing is necessary"")
+    
+    finally:
+        spark.stop()
+        print(""\nSpark session stopped."")
+
+if __name__ == ""__main__"":
+    main()","#!/usr/bin/env python3
+""""""
+Format String Migration - AFTER Script (Spark 3.3+)
+This script demonstrates the correct 1$-based indexing in format_string and printf functions.
+
+Usage:
+    python after_script.py
+
+This script can be run independently to test the corrected behavior.
+""""""
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import expr
+
+def main():
+    # Create SparkSession
+    spark = SparkSession.builder \
+        .appName('FormatStringAfter') \
+        .master('local[*]') \
+        .getOrCreate()
+    
+    print(""=== Format String Migration - AFTER (Correct 1$-based indexing) ==="")
+    
+    try:
+        # Create sample DataFrame
+        data = [
+            ('John', 5, 'Premium'),
+            ('Alice', 100, 'Gold'),
+            ('Bob', 25, 'Silver'),
+            ('Carol', 75, 'Premium')
+        ]
+        df = spark.createDataFrame(data, ['name', 'message_count', 'tier'])
+        
+        print(""\nOriginal DataFrame:"")
+        df.show()
+        
+        # Using format_string with 1$-based indexing (correct for Spark 3.3+)
+        print(""\n1. Using format_string with 1$-based indexing:"")
+        result1 = df.select(
+            'name',
+            'message_count',
+            expr(""format_string('Hello %1$s, you have %2$d messages', name, message_count)"").alias('greeting')
+        )
+        result1.show(truncate=False)
+        
+        # Using printf with 1$-based indexing (correct for Spark 3.3+)
+        print(""\n2. Using printf with 1$-based indexing:"")
+        result2 = df.select(
+            'name',
+            'tier',
+            expr(""printf('User %1$s has %2$s tier status', name, tier)"").alias('user_info')
+        )
+        result2.show(truncate=False)
+        
+        # Complex format string with proper argument indexing
+        print(""\n3. Complex format string with proper 1$-based indexing:"")
+        result3 = df.select(
+            'name',
+            'message_count',
+            'tier',
+            expr(""format_string('Welcome %1$s! You are a %3$s member with %2$d unread messages', name, message_count, tier)"").alias('welcome_msg')
+        )
+        result3.show(truncate=False)
+        
+        # Demonstrating argument reuse with proper indexing
+        print(""\n4. Argument reuse with proper indexing:"")
+        result4 = df.select(
+            'name',
+            expr(""format_string('Hello %1$s, welcome back %1$s!', name)"").alias('reuse_example')
+        )
+        result4.show(truncate=False)
+        
+        # Mixed format types with proper indexing
+        print(""\n5. Mixed format types with proper indexing:"")
+        result5 = df.select(
+            'name',
+            'message_count',
+            'tier',
+            expr(""printf('User: %1$s | Messages: %2$d | Tier: %3$s | Score: %2$d%%', name, message_count, tier)"").alias('detailed_info')
+        )
+        result5.show(truncate=False)
+        
+        # Nested format string operations with correct indexing
+        print(""\n6. Nested format string operations with 1$-based indexing:"")
+        result6 = df.select(
+            'name',
+            'message_count',
+            expr(""format_string('Status: %1$s', format_string('User %1$s has %2$d items', name, message_count))"").alias('nested_format')
+        )
+        result6.show(truncate=False)
+        
+        print(""\n✅ SUCCESS: All format string operations completed successfully!"")
+        print(""   This code uses correct 1$-based indexing compatible with Spark 3.3+"")
+        print(""   All argument references start from 1$ instead of 0$"")
+        
+    except Exception as e:
+        print(f""❌ Error executing format string operations: {e}"")
+        print(""   If you see this error, there might be an issue with the Spark setup or syntax"")
+    
+    finally:
+        spark.stop()
+        print(""\nSpark session stopped."")
+
+if __name__ == ""__main__"":
+    main()"
+cast_alias_migration_002,Cast Auto-Generation Column Alias Migration,3.1,3.2,column_alias_change,medium,column_naming,"In Spark 3.2, the auto-generated Cast (such as those added by type coercion rules) will be stripped when generating column alias names. E.g., sql(""SELECT floor(1)"").columns will be FLOOR(1) instead of FLOOR(CAST(1 AS DOUBLE)).","Column alias names may include auto-generated CAST expressions like FLOOR(CAST(1 AS DOUBLE)) instead of simplified FLOOR(1), causing inconsistent column naming and potential downstream issues",https://spark.apache.org/docs/latest/sql-migration-guide.html#upgrading-from-spark-sql-31-to-32,"cast, column_alias, type_coercion, sql_functions",2026-01-06T18:45:00Z,4257,5632,0.0,"#!/usr/bin/env python3
+""""""
+Cast Alias Migration - BEFORE Script (Spark 3.1 and earlier)
+This script demonstrates the old behavior where auto-generated CAST expressions 
+appear in column alias names.
+
+Usage:
+    python before_script.py
+
+This script can be run independently to test the old behavior.
+""""""
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import floor, ceil, round, abs as spark_abs
+
+def main():
+    # Create SparkSession
+    spark = SparkSession.builder \
+        .appName('CastAliasBefore') \
+        .master('local[*]') \
+        .getOrCreate()
+    
+    print(""=== Cast Alias Migration - BEFORE (Spark 3.1 and earlier) ==="")
+    
+    try:
+        # Create sample DataFrame with different data types
+        data = [
+            (1, 2.5, ""10.7"", True),
+            (2, 3.8, ""15.2"", False),
+            (3, 1.2, ""8.9"", True),
+            (4, 4.6, ""12.3"", False)
+        ]
+        df = spark.createDataFrame(data, ['int_col', 'double_col', 'string_col', 'bool_col'])
+        
+        print(""\nOriginal DataFrame:"")
+        df.show()
+        print(f""Original columns: {df.columns}"")
+        
+        # 1. Using SQL with floor function on integer (triggers auto-cast)
+        print(""\n1. SQL with floor function on integer:"")
+        result1 = spark.sql(""SELECT floor(1) as floor_result"")
+        result1.show()
+        print(f""Column names: {result1.columns}"")
+        print(""⚠️  In Spark 3.1: Column name includes CAST - 'FLOOR(CAST(1 AS DOUBLE))'"")
+        
+        # 2. Using DataFrame API with floor on integer column
+        print(""\n2. DataFrame API with floor on integer column:"")
+        result2 = df.select(floor(df.int_col))
+        result2.show()
+        print(f""Column names: {result2.columns}"")
+        
+        # 3. Multiple functions that trigger auto-cast
+        print(""\n3. Multiple functions with auto-cast:"")
+        result3 = spark.sql(""""""
+            SELECT 
+                floor(1) as floor_int,
+                ceil(2) as ceil_int,
+                round(3) as round_int,
+                abs(-4) as abs_int
+        """""")
+        result3.show()
+        print(f""Column names: {result3.columns}"")
+        
+        # 4. Mixed operations with type coercion
+        print(""\n4. Mixed operations with type coercion:"")
+        result4 = df.select(
+            floor(df.int_col).alias('floor_int_col'),
+            ceil(df.double_col).alias('ceil_double_col'),
+            spark_abs(df.int_col - 5).alias('abs_operation')
+        )
+        result4.show()
+        print(f""Column names: {result4.columns}"")
+        
+        # 5. String to numeric conversion with math functions
+        print(""\n5. String to numeric conversion with math functions:"")
+        result5 = df.select(
+            floor(df.string_col.cast('double')).alias('floor_from_string'),
+            round(df.string_col.cast('double'), 1).alias('round_from_string')
+        )
+        result5.show()
+        print(f""Column names: {result5.columns}"")
+        
+        # 6. Complex expressions with auto-cast
+        print(""\n6. Complex expressions with auto-cast:"")
+        # Register temp view for SQL first
+        df.createOrReplaceTempView(""temp_view"")
+        result6 = spark.sql(""""""
+            SELECT 
+                floor(int_col + 0.5) as complex_floor,
+                ceil(double_col * 2) as complex_ceil
+            FROM temp_view
+        """""")
+        result6.show()
+        print(f""Column names: {result6.columns}"")
+        
+        print(""\n⚠️  BEHAVIOR IN SPARK 3.1 AND EARLIER:"")
+        print(""   • Column aliases include auto-generated CAST expressions"")
+        print(""   • Names like 'FLOOR(CAST(1 AS DOUBLE))' instead of 'FLOOR(1)'"")
+        print(""   • This can cause issues with:"")
+        print(""     - Column name consistency"")
+        print(""     - Downstream applications expecting specific names"")
+        print(""     - Code that relies on predictable column naming"")
+        print(""     - Schema evolution and compatibility"")
+        
+    except Exception as e:
+        print(f""❌ Error executing cast alias operations: {e}"")
+        print(""   This might indicate version-specific behavior differences"")
+    
+    finally:
+        spark.stop()
+        print(""\nSpark session stopped."")
+
+if __name__ == ""__main__"":
+    main()","#!/usr/bin/env python3
+""""""
+Cast Alias Migration - AFTER Script (Spark 3.2+)
+This script demonstrates the new behavior where auto-generated CAST expressions 
+are stripped from column alias names.
+
+Usage:
+    python after_script.py
+
+This script can be run independently to test the new behavior.
+""""""
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import floor, ceil, round, abs as spark_abs
+
+def main():
+    # Create SparkSession
+    spark = SparkSession.builder \
+        .appName('CastAliasAfter') \
+        .master('local[*]') \
+        .getOrCreate()
+    
+    print(""=== Cast Alias Migration - AFTER (Spark 3.2+) ==="")
+    
+    try:
+        # Create sample DataFrame with different data types
+        data = [
+            (1, 2.5, ""10.7"", True),
+            (2, 3.8, ""15.2"", False),
+            (3, 1.2, ""8.9"", True),
+            (4, 4.6, ""12.3"", False)
+        ]
+        df = spark.createDataFrame(data, ['int_col', 'double_col', 'string_col', 'bool_col'])
+        
+        print(""\nOriginal DataFrame:"")
+        df.show()
+        print(f""Original columns: {df.columns}"")
+        
+        # 1. Using SQL with floor function on integer (auto-cast stripped)
+        print(""\n1. SQL with floor function on integer:"")
+        result1 = spark.sql(""SELECT floor(1) as floor_result"")
+        result1.show()
+        print(f""Column names: {result1.columns}"")
+        print(""✅ In Spark 3.2+: Column name is clean - 'FLOOR(1)' (CAST stripped)"")
+        
+        # 2. Using DataFrame API with floor on integer column
+        print(""\n2. DataFrame API with floor on integer column:"")
+        result2 = df.select(floor(df.int_col))
+        result2.show()
+        print(f""Column names: {result2.columns}"")
+        print(""✅ Clean column name without CAST expressions"")
+        
+        # 3. Multiple functions with stripped auto-cast
+        print(""\n3. Multiple functions with clean aliases:"")
+        result3 = spark.sql(""""""
+            SELECT 
+                floor(1) as floor_int,
+                ceil(2) as ceil_int,
+                round(3) as round_int,
+                abs(-4) as abs_int
+        """""")
+        result3.show()
+        print(f""Column names: {result3.columns}"")
+        print(""✅ All column names are clean and predictable"")
+        
+        # 4. Mixed operations with clean naming
+        print(""\n4. Mixed operations with clean column names:"")
+        result4 = df.select(
+            floor(df.int_col).alias('floor_int_col'),
+            ceil(df.double_col).alias('ceil_double_col'),
+            spark_abs(df.int_col - 5).alias('abs_operation')
+        )
+        result4.show()
+        print(f""Column names: {result4.columns}"")
+        print(""✅ Explicit aliases work as expected"")
+        
+        # 5. String to numeric conversion with clean names
+        print(""\n5. String to numeric conversion with clean names:"")
+        result5 = df.select(
+            floor(df.string_col.cast('double')).alias('floor_from_string'),
+            round(df.string_col.cast('double'), 1).alias('round_from_string')
+        )
+        result5.show()
+        print(f""Column names: {result5.columns}"")
+        print(""✅ Even complex type conversions have clean names"")
+        
+        # 6. Complex expressions with clean aliases
+        print(""\n6. Complex expressions with clean aliases:"")
+        df.createOrReplaceTempView(""temp_view"")
+        result6 = spark.sql(""""""
+            SELECT 
+                floor(int_col + 0.5) as complex_floor,
+                ceil(double_col * 2) as complex_ceil
+            FROM temp_view
+        """""")
+        result6.show()
+        print(f""Column names: {result6.columns}"")
+        print(""✅ Complex expressions also have clean, readable names"")
+        
+        # 7. Demonstrate the improvement with auto-generated names
+        print(""\n7. Auto-generated column names (no explicit alias):"")
+        result7 = spark.sql(""""""
+            SELECT 
+                floor(1),
+                ceil(2.5),
+                round(3.7),
+                abs(-4)
+        """""")
+        result7.show()
+        print(f""Column names: {result7.columns}"")
+        print(""✅ Auto-generated names are clean: FLOOR(1), CEIL(2.5), etc."")
+        
+        # 8. Comparison with explicit casting
+        print(""\n8. Explicit vs implicit casting behavior:"")
+        result8 = spark.sql(""""""
+            SELECT 
+                floor(1) as implicit_cast,
+                floor(CAST(1 AS DOUBLE)) as explicit_cast
+        """""")
+        result8.show()
+        print(f""Column names: {result8.columns}"")
+        print(""✅ Both implicit and explicit casting produce clean names"")
+        
+        print(""\n✅ IMPROVEMENTS IN SPARK 3.2+:"")
+        print(""   • Column aliases are clean and predictable"")
+        print(""   • Auto-generated CAST expressions are stripped from names"")
+        print(""   • Better consistency in column naming"")
+        print(""   • Improved compatibility with downstream applications"")
+        print(""   • Easier schema evolution and maintenance"")
+        print(""   • More readable and intuitive column names"")
+        
+        print(""\n📋 MIGRATION BENEFITS:"")
+        print(""   • Consistent column naming across versions"")
+        print(""   • Reduced complexity in column name handling"")
+        print(""   • Better integration with external tools"")
+        print(""   • Improved code maintainability"")
+        
+    except Exception as e:
+        print(f""❌ Error executing cast alias operations: {e}"")
+        print(""   This might indicate version-specific behavior differences"")
+    
+    finally:
+        spark.stop()
+        print(""\nSpark session stopped."")
+
+if __name__ == ""__main__"":
+    main()"
