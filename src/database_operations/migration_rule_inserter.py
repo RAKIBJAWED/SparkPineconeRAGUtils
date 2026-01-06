@@ -161,6 +161,7 @@ class MigrationRuleInserter:
         combined_text = f"""
         Rule: {rule_data.get('spark_rule', '')}
         Migration: {rule_data.get('rule_name', '')}
+        Language: {rule_data.get('language', '')}
         Source Version: {rule_data.get('source_spark_version', '')}
         Target Version: {rule_data.get('target_spark_version', '')}
         Before Script: {rule_data.get('before_script', '')[:500]}
@@ -179,6 +180,7 @@ class MigrationRuleInserter:
             "values": embedding,
             "metadata": {
                 "rule_name": rule_data.get('rule_name', ''),
+                "language": rule_data.get('language', 'python'),
                 "before_script": rule_data.get('before_script', ''),
                 "after_script": rule_data.get('after_script', ''),
                 "error_with_before_script": rule_data.get('error_with_before_script', ''),
@@ -274,6 +276,7 @@ class MigrationRuleInserter:
             
             print(f"\n📝 Inserting migration rule: {rule_data.get('rule_name', 'Unknown Rule')}")
             print(f"   🆔 Rule ID: {vector['id']}")
+            print(f"   💻 Language: {rule_data.get('language', 'python')}")
             print(f"   📊 Versions: {rule_data.get('source_spark_version', 'N/A')} → {rule_data.get('target_spark_version', 'N/A')}")
             print(f"   🏷️  Category: {rule_data.get('category', 'N/A')} | Severity: {rule_data.get('severity', 'N/A')}")
             print(f"   🏷️  Tags: {', '.join(rule_data.get('tags', []))}")
@@ -366,6 +369,74 @@ class MigrationRuleInserter:
             print(f"❌ Error processing rules directory: {e}")
             return results
     
+    def search_migration_rules_by_language(self, query: str, language: str, top_k: int = 5) -> Optional[List[Dict[str, Any]]]:
+        """
+        Search for migration rules based on query and filter by language.
+        
+        Args:
+            query: Search query
+            language: Programming language filter (python, scala, java)
+            top_k: Number of results to return
+            
+        Returns:
+            List of relevant migration rules for the specified language
+        """
+        try:
+            if not self.index:
+                print("❌ Index not available. Please check connection.")
+                return None
+            
+            # Validate language parameter
+            valid_languages = ['python', 'scala', 'java']
+            if language.lower() not in valid_languages:
+                print(f"❌ Invalid language '{language}'. Valid options: {', '.join(valid_languages)}")
+                return None
+            
+            # Generate embedding for query
+            query_embedding = self.generate_embedding(query)
+            
+            print(f"🔍 Searching for {language} rules related to: '{query}'")
+            response = self.index.query(
+                vector=query_embedding,
+                top_k=top_k * 3,  # Get more results to filter by language
+                include_metadata=True,
+                filter={"language": {"$eq": language.lower()}}
+            )
+            
+            results = []
+            print(f"\n📋 Found {len(response['matches'])} relevant {language} migration rules:")
+            
+            for i, match in enumerate(response['matches'][:top_k]):  # Limit to top_k after filtering
+                metadata = match['metadata']
+                result = {
+                    "id": match['id'],
+                    "score": match['score'],
+                    "rule_name": metadata.get('rule_name', ''),
+                    "language": metadata.get('language', 'python'),
+                    "spark_rule": metadata.get('spark_rule', ''),
+                    "source_version": metadata.get('source_spark_version', ''),
+                    "target_version": metadata.get('target_spark_version', ''),
+                    "category": metadata.get('category', ''),
+                    "severity": metadata.get('severity', ''),
+                    "tags": metadata.get('tags', []),
+                    "documentation": metadata.get('spark_doc_link', '')
+                }
+                results.append(result)
+                
+                print(f"\n{i+1}. 📝 {metadata.get('rule_name', 'Unknown Rule')} (Score: {match['score']:.4f})")
+                print(f"   💻 Language: {metadata.get('language', 'python')}")
+                print(f"   🏷️  Category: {metadata.get('category', 'N/A')} | Severity: {metadata.get('severity', 'N/A')}")
+                print(f"   📊 Versions: {metadata.get('source_spark_version', '')} → {metadata.get('target_spark_version', '')}")
+                print(f"   🏷️  Tags: {', '.join(metadata.get('tags', []))}")
+                print(f"   📄 Scripts: Available in metadata")
+                print(f"   📖 Documentation: {metadata.get('spark_doc_link', 'N/A')}")
+            
+            return results
+            
+        except Exception as e:
+            print(f"❌ Error searching for {language} rules: {e}")
+            return None
+
     def search_migration_rules(self, query: str, top_k: int = 5) -> Optional[List[Dict[str, Any]]]:
         """
         Search for migration rules based on query.
@@ -401,6 +472,7 @@ class MigrationRuleInserter:
                     "id": match['id'],
                     "score": match['score'],
                     "rule_name": metadata.get('rule_name', ''),
+                    "language": metadata.get('language', 'python'),
                     "spark_rule": metadata.get('spark_rule', ''),
                     "source_version": metadata.get('source_spark_version', ''),
                     "target_version": metadata.get('target_spark_version', ''),
@@ -412,6 +484,7 @@ class MigrationRuleInserter:
                 results.append(result)
                 
                 print(f"\n{i+1}. 📝 {metadata.get('rule_name', 'Unknown Rule')} (Score: {match['score']:.4f})")
+                print(f"   💻 Language: {metadata.get('language', 'python')}")
                 print(f"   🏷️  Category: {metadata.get('category', 'N/A')} | Severity: {metadata.get('severity', 'N/A')}")
                 print(f"   📊 Versions: {metadata.get('source_spark_version', '')} → {metadata.get('target_spark_version', '')}")
                 print(f"   🏷️  Tags: {', '.join(metadata.get('tags', []))}")
@@ -424,6 +497,49 @@ class MigrationRuleInserter:
             print(f"❌ Error searching for rules: {e}")
             return None
     
+    def get_language_statistics(self) -> Optional[Dict[str, int]]:
+        """
+        Get statistics about migration rules by language.
+        
+        Returns:
+            Dictionary with language counts
+        """
+        try:
+            if not self.index:
+                print("❌ Index not available. Please check connection.")
+                return None
+            
+            print("\n📊 Migration Rules by Language:")
+            
+            language_stats = {}
+            valid_languages = ['python', 'scala', 'java']
+            
+            for language in valid_languages:
+                try:
+                    # Query for each language with a dummy vector (we just want the count)
+                    dummy_embedding = self.generate_embedding("dummy")
+                    response = self.index.query(
+                        vector=dummy_embedding,
+                        top_k=1000,  # Large number to get all results
+                        include_metadata=False,
+                        filter={"language": {"$eq": language}}
+                    )
+                    count = len(response['matches'])
+                    language_stats[language] = count
+                    print(f"   💻 {language.capitalize()}: {count} rules")
+                except Exception as e:
+                    print(f"   ❌ Error getting {language} count: {e}")
+                    language_stats[language] = 0
+            
+            total = sum(language_stats.values())
+            print(f"   📈 Total: {total} rules")
+            
+            return language_stats
+            
+        except Exception as e:
+            print(f"❌ Error getting language statistics: {e}")
+            return None
+
     def get_index_stats(self) -> Optional[Dict[str, Any]]:
         """
         Get statistics about the migration rules in the index.
@@ -478,9 +594,17 @@ def main():
         print("\n2️⃣  Getting Database Statistics...")
         inserter.get_index_stats()
         
+        # 2b. Get Language Statistics
+        print("\n2️⃣b Getting Language Statistics...")
+        inserter.get_language_statistics()
+        
         # 3. Search for format string rules
         print("\n3️⃣  Searching for Format String Rules...")
         inserter.search_migration_rules("format_string printf argument index")
+        
+        # 3b. Search for Python-specific rules
+        print("\n3️⃣b Searching for Python-specific Rules...")
+        inserter.search_migration_rules_by_language("format_string", "python")
         
         # 4. Insert all rules from directory (if there are more)
         print("\n4️⃣  Scanning for additional rules...")

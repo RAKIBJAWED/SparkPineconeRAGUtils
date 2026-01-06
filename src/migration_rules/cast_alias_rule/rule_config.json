@@ -3,6 +3,7 @@
   "rule_name": "Cast Auto-Generation Column Alias Migration",
   "source_spark_version": "3.1",
   "target_spark_version": "3.2",
+  "language": "python",
   "error_with_before_script": "Column alias names may include auto-generated CAST expressions like FLOOR(CAST(1 AS DOUBLE)) instead of simplified FLOOR(1), causing inconsistent column naming and potential downstream issues",
   "spark_rule": "In Spark 3.2, the auto-generated Cast (such as those added by type coercion rules) will be stripped when generating column alias names. E.g., sql(\"SELECT floor(1)\").columns will be FLOOR(1) instead of FLOOR(CAST(1 AS DOUBLE)).",
   "spark_doc_link": "https://spark.apache.org/docs/latest/sql-migration-guide.html#upgrading-from-spark-sql-31-to-32",
