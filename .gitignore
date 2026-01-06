@@ -1,2 +1,22 @@
-/.vscode
-/spark_env
+# IDE
+.vscode/
+
+# Virtual environment
+spark_env/
+venv/
+env/
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
