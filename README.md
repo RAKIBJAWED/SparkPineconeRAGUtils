@@ -38,8 +38,8 @@ This project provides a structured approach to manage Spark migration rules acro
 
 ```bash
 # Clone the repository
-git clone https://github.com/RAKIBJAWED/keroTestProject.git
-cd keroTestProject
+git clone https://github.com/RAKIBJAWED/SparkPineconeRAGUtils.git
+cd SparkPineconeRAGUtils
 
 # Run setup script
 chmod +x setup.sh
