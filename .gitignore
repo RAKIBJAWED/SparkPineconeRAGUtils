@@ -1,5 +1,6 @@
 # IDE
 .vscode/
+.idea/
 
 # Virtual environment
 spark_env/

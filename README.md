@@ -310,14 +310,25 @@ export SPARK_LOCAL_IP="127.0.0.1"  # Optional: for local Spark setup
 ## 📊 Current Migration Rules
 
 ### 1. Format String Argument Index Migration
+- **Language**: Python
 - **Versions**: 3.2 → 3.3
+- **Status**: ✅ Updated with language property
 - **Issue**: `format_string()` and `printf()` no longer support `0$` indexing
 - **Solution**: Use `1$`-based indexing for arguments
 
 ### 2. Cast Auto-Generation Column Alias Migration  
+- **Language**: Python
 - **Versions**: 3.1 → 3.2
+- **Status**: ✅ Updated with language property
 - **Issue**: Auto-generated CAST expressions appear in column names
 - **Solution**: CAST expressions are stripped from column aliases
+
+### 3. ALTER PARTITION Type Validation Migration
+- **Language**: Python
+- **Versions**: 3.3 → 3.4
+- **Status**: ✅ Newly added
+- **Issue**: ALTER PARTITION now validates partition spec types, may cause exceptions for type mismatches
+- **Solution**: Use correct data types in partition specifications or set legacy flag
 
 ## 🔧 Troubleshooting
 
