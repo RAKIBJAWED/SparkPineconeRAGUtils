@@ -1,6 +1,7 @@
 # IDE
 .vscode/
 .idea/
+metastore_db/
 
 # Virtual environment
 spark_env/

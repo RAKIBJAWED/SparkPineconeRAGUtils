@@ -1,0 +1,15 @@
+{
+  "rule_id": "format_string_migration_scala_004",
+  "rule_name": "Format String Argument Index Migration (Scala)",
+  "source_spark_version": "3.2",
+  "target_spark_version": "3.3",
+  "language": "scala",
+  "error_with_before_script": "[INVALID_PARAMETER_VALUE.ZERO_INDEX] The value of parameter(s) `strfmt` in `format_string` is invalid: expects %1$, %2$ and so on, but got %0$.; line 1 pos 0",
+  "spark_rule": "Since Spark 3.3, the strfmt in format_string(strfmt, obj, ...) and printf(strfmt, obj, ...) will no longer support to use 0$ to specify the first argument, the first argument should always reference by 1$ when use argument index to indicating the position of the argument in the argument list.",
+  "spark_doc_link": "https://spark.apache.org/docs/latest/sql-migration-guide.html#upgrading-from-spark-sql-33-to-34",
+  "migration_type": "sql_function_change",
+  "severity": "high",
+  "category": "string_formatting",
+  "tags": ["format_string", "printf", "argument_indexing", "sql_functions", "scala"],
+  "created_at": "2026-01-07T17:30:00Z"
+}
